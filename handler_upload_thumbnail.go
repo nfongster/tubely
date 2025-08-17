@@ -76,8 +76,9 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	dataURL := filepath.Join(fmt.Sprintf("http://localhost:%s", cfg.port), assetPath)
-	video.ThumbnailURL = &dataURL
+	// Create the web URL
+	webURL := fmt.Sprintf("/assets/%s.%s", videoID, ext)
+	video.ThumbnailURL = &webURL
 
 	if err := cfg.db.UpdateVideo(video); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating video", err)
