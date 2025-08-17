@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"mime"
@@ -65,7 +67,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 
 	ext := strings.Split(mediaType, "/")[1]
-	assetPath := filepath.Join(cfg.assetsRoot, fmt.Sprintf("%s.%s", videoID, ext))
+	assetPath := filepath.Join(cfg.assetsRoot, fmt.Sprintf("%s.%s", generateRandomFileName(), ext))
 	asset, err := os.Create(assetPath)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating new video asset", err)
@@ -77,7 +79,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Create the web URL
-	webURL := fmt.Sprintf("/assets/%s.%s", videoID, ext)
+	webURL := fmt.Sprintf("http://%s", filepath.Join(fmt.Sprintf("localhost:%s", cfg.port), assetPath))
 	video.ThumbnailURL = &webURL
 
 	if err := cfg.db.UpdateVideo(video); err != nil {
@@ -86,4 +88,13 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 
 	respondWithJSON(w, http.StatusOK, video)
+}
+
+func generateRandomFileName() string {
+	// Fill byte slice with random bytes
+	input := make([]byte, 32)
+	rand.Read(input)
+
+	// Convert into a random base64 string
+	return base64.RawURLEncoding.EncodeToString(input)
 }
