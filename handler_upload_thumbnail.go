@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"io"
+	"mime"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -57,10 +58,14 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Store image data as a file in the assets folder
-	ext := strings.Split(header.Header.Get("Content-Type"), "/")[1]
-	fmt.Printf("extension: %s\n", ext)
+	mediaType, _, err := mime.ParseMediaType(header.Header.Get("Content-Type"))
+	if err != nil || (mediaType != "image/jpeg" && mediaType != "image/png") {
+		respondWithError(w, http.StatusBadRequest, "error parsing media type", err)
+		return
+	}
+
+	ext := strings.Split(mediaType, "/")[1]
 	assetPath := filepath.Join(cfg.assetsRoot, fmt.Sprintf("%s.%s", videoID, ext))
-	fmt.Printf("asset path: %s\n", assetPath)
 	asset, err := os.Create(assetPath)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error creating new video asset", err)
