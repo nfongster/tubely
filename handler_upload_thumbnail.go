@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
@@ -44,7 +45,6 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 
 	mediaType := r.Header.Get("Content-Type")
-	fmt.Println(mediaType) // for debug
 	imgData, err := io.ReadAll(file)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error reading thumbnail", err)
@@ -61,13 +61,10 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	videoThumbnails[videoID] = thumbnail{
-		data:      imgData,
-		mediaType: mediaType,
-	}
-
-	newURL := fmt.Sprintf("http://localhost:%s/api/thumbnails/%s", cfg.port, videoID)
-	video.ThumbnailURL = &newURL
+	// Store image data in SQLite DB as a base64-encoded string
+	imgStr := base64.StdEncoding.EncodeToString(imgData)
+	dataURL := fmt.Sprintf("data:%s;base64,%s", mediaType, imgStr)
+	video.ThumbnailURL = &dataURL
 
 	if err := cfg.db.UpdateVideo(video); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error updating video", err)
