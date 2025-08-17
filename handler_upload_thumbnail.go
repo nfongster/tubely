@@ -1,10 +1,12 @@
 package main
 
 import (
-	"encoding/base64"
 	"fmt"
 	"io"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/auth"
 	"github.com/google/uuid"
@@ -38,16 +40,9 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	file, _, err := r.FormFile("thumbnail")
+	file, header, err := r.FormFile("thumbnail")
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Error getting thumbnail", err)
-		return
-	}
-
-	mediaType := r.Header.Get("Content-Type")
-	imgData, err := io.ReadAll(file)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error reading thumbnail", err)
 		return
 	}
 
@@ -61,9 +56,22 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Store image data in SQLite DB as a base64-encoded string
-	imgStr := base64.StdEncoding.EncodeToString(imgData)
-	dataURL := fmt.Sprintf("data:%s;base64,%s", mediaType, imgStr)
+	// Store image data as a file in the assets folder
+	ext := strings.Split(header.Header.Get("Content-Type"), "/")[1]
+	fmt.Printf("extension: %s\n", ext)
+	assetPath := filepath.Join(cfg.assetsRoot, fmt.Sprintf("%s.%s", videoID, ext))
+	fmt.Printf("asset path: %s\n", assetPath)
+	asset, err := os.Create(assetPath)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error creating new video asset", err)
+		return
+	}
+	if _, err := io.Copy(asset, file); err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error copying data to new video asset", err)
+		return
+	}
+
+	dataURL := filepath.Join(fmt.Sprintf("http://localhost:%s", cfg.port), assetPath)
 	video.ThumbnailURL = &dataURL
 
 	if err := cfg.db.UpdateVideo(video); err != nil {
