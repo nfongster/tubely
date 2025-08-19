@@ -6,6 +6,7 @@ import (
 	"mime"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/aws/aws-sdk-go-v2/service/s3"
@@ -71,13 +72,30 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 	tmpFileKey := tmpFile.Name()
-	fmt.Printf("Temp file location: %s\n", tmpFileKey)
 	defer os.Remove(tmpFileKey)
 	defer tmpFile.Close()
 	if _, err := io.Copy(tmpFile, videoFile); err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to copy video file", err)
 		return
 	}
+
+	// 7.1) Get the aspect ratio
+	ar, err := getVideoAspectRatio(tmpFileKey)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Failed to get aspect ratio", err)
+		return
+	}
+	var arPrefix string
+	switch ar {
+	case string16_9:
+		arPrefix = "landscape"
+	case string9_16:
+		arPrefix = "portrait"
+	default:
+		arPrefix = "other"
+	}
+	tmpFileKey = filepath.Join(arPrefix, tmpFileKey)
+	fmt.Printf("Temp File Key: %s\n", tmpFileKey)
 
 	// 8) Reset temp file's file pointer to the beginning
 	if _, err = tmpFile.Seek(0, io.SeekStart); err != nil {
