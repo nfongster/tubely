@@ -2,16 +2,10 @@ package main
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"fmt"
 	"math"
 	"os/exec"
-	"strings"
-	"time"
-
-	"github.com/aws/aws-sdk-go-v2/service/s3"
-	"github.com/bootdotdev/learn-file-storage-s3-golang-starter/internal/database"
 )
 
 const (
@@ -61,34 +55,34 @@ func processVideoForFastStart(filePath string) (string, error) {
 	return outputPath, nil
 }
 
-func (cfg *apiConfig) dbVideoToSignedVideo(video database.Video) (database.Video, error) {
-	if video.VideoURL == nil {
-		return video, nil
-	}
-	s := strings.Split(*video.VideoURL, ",")
-	if len(s) != 2 {
-		return video, fmt.Errorf("db video URL was in improper format")
-	}
+// func (cfg *apiConfig) dbVideoToSignedVideo(video database.Video) (database.Video, error) {
+// 	if video.VideoURL == nil {
+// 		return video, nil
+// 	}
+// 	s := strings.Split(*video.VideoURL, ",")
+// 	if len(s) != 2 {
+// 		return video, fmt.Errorf("db video URL was in improper format")
+// 	}
 
-	bucket, key := s[0], s[1]
-	psURL, err := generatePresignedURL(cfg.s3Client, bucket, key, time.Second)
-	if err != nil {
-		return video, err
-	}
+// 	bucket, key := s[0], s[1]
+// 	psURL, err := generatePresignedURL(cfg.s3Client, bucket, key, time.Second)
+// 	if err != nil {
+// 		return video, err
+// 	}
 
-	video.VideoURL = &psURL
-	return video, nil
-}
+// 	video.VideoURL = &psURL
+// 	return video, nil
+// }
 
-func generatePresignedURL(s3Client *s3.Client, bucket, key string, expireTime time.Duration) (string, error) {
-	presignClient := s3.NewPresignClient(s3Client)
-	objInput := s3.GetObjectInput{
-		Bucket: &bucket,
-		Key:    &key,
-	}
-	req, err := presignClient.PresignGetObject(context.Background(), &objInput, s3.WithPresignExpires(expireTime))
-	return req.URL, err
-}
+// func generatePresignedURL(s3Client *s3.Client, bucket, key string, expireTime time.Duration) (string, error) {
+// 	presignClient := s3.NewPresignClient(s3Client)
+// 	objInput := s3.GetObjectInput{
+// 		Bucket: &bucket,
+// 		Key:    &key,
+// 	}
+// 	req, err := presignClient.PresignGetObject(context.Background(), &objInput, s3.WithPresignExpires(expireTime))
+// 	return req.URL, err
+// }
 
 type streamData struct {
 	Streams []struct {

@@ -130,7 +130,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	}
 
 	// 10) Update video URL in DB
-	videoURL := getS3VideoUrl(cfg.s3Bucket, tmpFileKey)
+	videoURL := getS3VideoUrl(cfg.s3CfDistribution, tmpFileKey)
 	fmt.Printf("Video URL: %s\n", videoURL)
 	video.VideoURL = &videoURL
 	video.UpdatedAt = time.Now()
@@ -139,16 +139,9 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// 11) Sign the URL before sending it over the wire
-	video, err = cfg.dbVideoToSignedVideo(video)
-	if err != nil {
-		respondWithError(w, http.StatusInternalServerError, "Error signing video", err)
-		return
-	}
-
 	respondWithJSON(w, http.StatusOK, video)
 }
 
-func getS3VideoUrl(bucket, key string) string {
-	return fmt.Sprintf("%s,%s", bucket, key)
+func getS3VideoUrl(s3CfDistribution, key string) string {
+	return fmt.Sprintf("https://%s/%s", s3CfDistribution, key)
 }
