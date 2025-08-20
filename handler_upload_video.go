@@ -61,7 +61,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	// 6) Check that uploaded file is mp4
 	mediaType, _, err := mime.ParseMediaType("video/mp4")
 	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Failed to parse media type", err)
+		respondWithError(w, http.StatusInternalServerError, "Failed to parse media type", err)
 		return
 	}
 
@@ -79,7 +79,21 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
-	// 7.1) Get the aspect ratio
+	// 7.1) Process video (so that it has a fast start encoding)
+	tmpFileKey, err = processVideoForFastStart(tmpFileKey)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error processing temp file", err)
+		return
+	}
+	fmt.Printf("Temp File Key (post-process): %s\n", tmpFileKey)
+	prcFile, err := os.Open(tmpFileKey)
+	if err != nil {
+		respondWithError(w, http.StatusInternalServerError, "Error opening processed temp file", err)
+		return
+	}
+	defer prcFile.Close()
+
+	// 7.2) Get the aspect ratio
 	ar, err := getVideoAspectRatio(tmpFileKey)
 	if err != nil {
 		respondWithError(w, http.StatusInternalServerError, "Failed to get aspect ratio", err)
@@ -107,7 +121,7 @@ func (cfg *apiConfig) handlerUploadVideo(w http.ResponseWriter, r *http.Request)
 	s3Params := s3.PutObjectInput{
 		Bucket:      &cfg.s3Bucket,
 		Key:         &tmpFileKey,
-		Body:        tmpFile,
+		Body:        prcFile,
 		ContentType: &mediaType,
 	}
 	if _, err = cfg.s3Client.PutObject(r.Context(), &s3Params); err != nil {
